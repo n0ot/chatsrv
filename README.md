@@ -9,9 +9,21 @@ To use:
 * Run chatsrv_cmd
 
 To connect, use netcat:
+
     nc localhost 36362
 
 If you want to use tls, set useTls = true in the configuration, and point certFile and keyFile at your certificate and private key.
+[Ncat](https://nmap.org/ncat/) is an improved version of netcat that supports ssl. To connect to a host with ssl, use
+
+    ncat --ssl localhost 36362
+
+In order to prevent man-in-the-middle attacks, the certificate should be verified. If your certificate was signed by a trusted CA, you can just run
+
+    ncat --ssl-verify chatsrv.example.com 36362
+
+Otherwise, you'll need to give the certificate (not the private key) to people who want to connect, and they'll need to type
+
+    ncat --ssl-verify --ssl-trustfile yourcert.pem chatsrv.example.com 36362
 
 Commands are:
 
