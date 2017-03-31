@@ -56,6 +56,8 @@ func init() {
 	commands["leave"] = cmdLeave
 	commands["quit"] = cmdQuit
 	commands["whois"] = cmdWhois
+	commands["nick"] = cmdNick
+	commands["me"] = cmdMe
 }
 
 // Internal commands
@@ -369,6 +371,76 @@ var cmdWhois commandHandlerFunc = func(server *server, command *serverCommand) {
 	}
 
 	command.responseChan <- []byte(strings.Join(whoisInfo, "\n") + "\n")
+}
+
+// cmdNick changes a user's nick
+var cmdNick commandHandlerFunc = func(server *server, command *serverCommand) {
+	if len(command.args) < 1 {
+		command.responseChan <- []byte("What do you want to change your nick to?\n")
+		return
+	}
+	nick := command.args[0]
+	for _, r := range nick {
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+			command.responseChan <- []byte("Nicks can contain only letters and numbers\n")
+			return
+		}
+	}
+
+	// Convert to lowercase so people can't connect with the same nick with different case.
+	// This is only necessary for this map, since case-insensitive dupes will be filtered here.
+	if _, exists := server.clients[strings.ToLower(nick)]; exists {
+		command.responseChan <- []byte("That nick is already taken.\n")
+		return
+	}
+
+	server.clients[strings.ToLower(nick)] = command.client
+	delete(server.clients, strings.ToLower(command.nick))
+	server.userResponseChan[nick] = command.responseChan
+	delete(server.userResponseChan, command.nick)
+	command.client.SetVar("nick", nick)
+
+	roomName := server.userActiveRoom[command.nick]
+	if roomName != "" {
+		// User is in a room
+		server.userActiveRoom[nick] = roomName
+		room, ok := server.rooms[strings.ToLower(roomName)]
+		if ok {
+			_, isMod := room.mods[command.nick]
+			if isMod {
+				delete(room.mods, command.nick)
+				room.mods[nick] = struct{}{}
+			}
+			_, isUser := room.users[command.nick]
+			if isUser {
+				delete(room.users, command.nick)
+				room.users[nick] = struct{}{}
+			}
+			if room.creater == command.nick {
+				room.creater = nick
+			}
+		}
+		sayToRoom(server, roomName, fmt.Sprintf("%s is now known as %s", command.nick, nick))
+	} else {
+		command.responseChan <- []byte(fmt.Sprintf("You are now known as %s\n", nick))
+	}
+}
+
+// cmdMe sends an emote in the form "<nick> <message>"
+var cmdMe commandHandlerFunc = func(server *server, command *serverCommand) {
+	if len(command.args) < 1 {
+		command.responseChan <- []byte("Try something like \"/me sits down\" without the quotes.\n")
+		return
+	}
+
+	action := strings.Join(command.args, " ")
+	roomName, ok := server.userActiveRoom[command.nick]
+	if !ok {
+		command.responseChan <- []byte("You must be in a room to do that.\n")
+		return
+	}
+
+	sayToRoom(server, roomName, fmt.Sprintf("%s %s", command.nick, action))
 }
 
 // Helper functions

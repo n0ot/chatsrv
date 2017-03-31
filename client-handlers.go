@@ -81,6 +81,11 @@ func (ch chatClientHandler) Handle(client *Client) string {
 	}
 
 	for {
+		// Track the client's nick variable, in case the server changes it
+		nick, ok = client.GetVar("nick").(string)
+		if !ok {
+			return "Invalid nick"
+		}
 		select {
 		case data, ok := <-responseChan:
 			if !ok {
