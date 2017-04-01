@@ -34,17 +34,21 @@ func init() {
 }
 
 func main() {
-	bindAddr := viper.GetString("bindAddr")
 	motdFile := os.ExpandEnv(viper.GetString("motdFile"))
 	motd, err := ioutil.ReadFile(motdFile)
 	if err != nil {
 		log.Fatalf("Error reading motd from file. If you don't want a message of the day, create an empty file: %s\n", err)
 	}
 
-	useTls := viper.GetBool("tls.useTls")
-	certFile := os.ExpandEnv(viper.GetString("tls.certFile"))
-	keyFile := os.ExpandEnv(viper.GetString("tls.keyFile"))
+	config := &chatsrv.ServerConfig{
+		BindAddr:   viper.GetString("bindAddr"),
+		ServerName: viper.GetString("serverName"),
+		Motd:       string(motd),
+		UseTls:     viper.GetBool("tls.useTls"),
+		CertFile:   os.ExpandEnv(viper.GetString("tls.certFile")),
+		KeyFile:    os.ExpandEnv(viper.GetString("tls.keyFile")),
+	}
 
-	server := chatsrv.NewServer(bindAddr, string(motd), certFile, keyFile, useTls)
+	server := chatsrv.NewServer(config)
 	server.Start()
 }

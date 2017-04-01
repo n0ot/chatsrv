@@ -74,6 +74,13 @@ func (client *Client) send() {
 	// This method needs to close client.rw when the client is stopped.
 	// It takes responsibility for this to prevent writing to rw when it is closed (by someone else).
 	defer client.rw.Close()
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Error sending data from client handler to %s: %s\n", client, r)
+		}
+		log.Printf("Stopping pipe from client handler to %s\n", client)
+	}()
+	log.Printf("Starting pipe from client handler to %s\n", client)
 
 	for data := range client.Send {
 		// Keep sending till data is empty, or there is an error
@@ -104,6 +111,13 @@ func (client *Client) send() {
 // If more than one byte was read from the client, they will all be sent at once.
 func (client *Client) receive() {
 	defer close(client.Recv)
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Error sending data from %s to client handler: %s\n", client, r)
+		}
+		log.Printf("Stopping pipe from %s to client handler\n", client)
+	}()
+	log.Printf("Starting pipe from %s to client handler\n", client)
 
 	for client.scanner.Scan() {
 		select {
@@ -128,6 +142,13 @@ func (client *Client) receive() {
 // Waits for the client handler to finish,
 // and then stops the client.
 func (client *Client) handle(clientHandler ClientHandler) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Error handling %s: %s\n", client, r)
+		}
+	}()
+
+	log.Printf("Handling %s\n", client)
 	exitReason := clientHandler.Handle(client)
 	client.Stop(exitReason)
 	reasonStrs := make([]string, 0, 2)
@@ -136,6 +157,10 @@ func (client *Client) handle(clientHandler ClientHandler) {
 		reasonStrs = append(reasonStrs, fmt.Sprintf("client handler returned: %s", exitReason))
 	}
 	log.Println(strings.Join(reasonStrs, "; "))
+
+	// As client.Send should only be used by client handlers,
+	// it is safe to close client.Send now.
+	close(client.Send)
 }
 
 func (client *Client) InputMode() InputMode {
@@ -160,19 +185,22 @@ func (client *Client) SetInputMode(inputMode InputMode) error {
 
 // Stopped returns true if the client was stopped.
 func (client *Client) Stopped() bool {
+	client.stoppedLock.Lock()
+	defer client.stoppedLock.Unlock()
 	return client.stopped
 }
 
 // StoppedReason returns the reason the client was stopped.
 // Returns "" if the client is still running, or if no reason was set.
 func (client *Client) StoppedReason() string {
+	client.stoppedLock.Lock()
+	defer client.stoppedLock.Unlock()
 	return client.stoppedReason
 }
 
 // Stop stops a client, closing it's ReadWriteCloser.
 // Stop is idempotent; calling Stop more than once will have no effect.
-// If there is any more data on the send channel to be sent,
-// an attempt will be made to send the rest of it before closing the connection.
+// The send channel will not be closed until the initial ClientHandler returns.
 func (client *Client) Stop(reason string) {
 	client.stoppedLock.Lock()
 	defer client.stoppedLock.Unlock()
@@ -182,7 +210,6 @@ func (client *Client) Stop(reason string) {
 
 	client.stoppedReason = reason
 	close(client.done)
-	close(client.Send)
 	client.stopped = true
 }
 

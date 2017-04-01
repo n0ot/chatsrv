@@ -74,7 +74,7 @@ var cmdAdduser commandHandlerFunc = func(server *server, command *serverCommand)
 
 	server.clients[strings.ToLower(command.nick)] = command.client
 	server.userResponseChan[command.nick] = command.responseChan
-	command.responseChan <- []byte(fmt.Sprintf("%s\n\nWelcome %s\n", server.motd, command.nick))
+	command.responseChan <- []byte(fmt.Sprintf("%s\n\nWelcome %s\n", server.config.Motd, command.nick))
 }
 
 // cmdRmuser removes a user from the server

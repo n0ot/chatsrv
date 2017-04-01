@@ -16,11 +16,7 @@ const acceptBuffSize = 100 // Buffer size of channel for accepting commands
 
 // Contains state for the server
 type server struct {
-	bindAddr         string
-	certFile         string
-	keyFile          string
-	useTls           bool
-	motd             string
+	config           ServerConfig
 	rooms            map[string]*room
 	clients          map[string]*Client
 	userActiveRoom   map[string]string
@@ -30,14 +26,19 @@ type server struct {
 	running          bool
 }
 
+type ServerConfig struct {
+	ServerName string
+	BindAddr   string
+	CertFile   string
+	KeyFile    string
+	UseTls     bool
+	Motd       string
+}
+
 // NewServer creates a new server with the specified configuration
-func NewServer(bindAddr, motd, certFile, keyFile string, useTls bool) *server {
+func NewServer(config *ServerConfig) *server {
 	server := server{
-		bindAddr:         bindAddr,
-		certFile:         certFile,
-		keyFile:          keyFile,
-		useTls:           useTls,
-		motd:             motd,
+		config:           *config,
 		rooms:            make(map[string]*room),
 		clients:          make(map[string]*Client),
 		userActiveRoom:   make(map[string]string),
@@ -61,27 +62,27 @@ func (server *server) Start() {
 
 	var listener net.Listener
 	var listenerErr error
-	if server.useTls {
-		cert, err := tls.LoadX509KeyPair(server.certFile, server.keyFile)
+	if server.config.UseTls {
+		cert, err := tls.LoadX509KeyPair(server.config.CertFile, server.config.KeyFile)
 		if err != nil {
 			log.Printf("Error loading X.509 key pair: %s\n", err)
 			return
 		}
 
 		tlsConf := &tls.Config{Certificates: []tls.Certificate{cert}}
-		listener, listenerErr = tls.Listen("tcp", server.bindAddr, tlsConf)
+		listener, listenerErr = tls.Listen("tcp", server.config.BindAddr, tlsConf)
 		if listenerErr != nil {
-			log.Printf("Cannot start the server, binding on %s; %s\n", server.bindAddr, listenerErr)
+			log.Printf("Cannot start the server, binding on %s; %s\n", server.config.BindAddr, listenerErr)
 			return
 		}
-		log.Printf("Listening on %s with TLS enabled\n", server.bindAddr)
+		log.Printf("Listening on %s with TLS enabled\n", server.config.BindAddr)
 	} else {
-		listener, listenerErr = net.Listen("tcp", server.bindAddr)
+		listener, listenerErr = net.Listen("tcp", server.config.BindAddr)
 		if listenerErr != nil {
-			log.Printf("Cannot start the server, binding on %s; %s\n", server.bindAddr, listenerErr)
+			log.Printf("Cannot start the server, binding on %s; %s\n", server.config.BindAddr, listenerErr)
 			return
 		}
-		log.Printf("Listening on %s\n", server.bindAddr)
+		log.Printf("Listening on %s\n", server.config.BindAddr)
 	}
 
 	defer listener.Close()
@@ -120,6 +121,12 @@ func (server *server) acceptCommands() {
 // handleCommand looks up a command in the internalCommands or commands map, found in server-commands.go,
 // and if found, runs it.
 func (server *server) handleCommand(command *serverCommand) error {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Error processing command %s for %s: %s\n", command.command, command.client, r)
+		}
+	}()
+
 	if command.nick == "" {
 		return fmt.Errorf("No nick supplied in command")
 	}

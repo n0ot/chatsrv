@@ -1,6 +1,7 @@
 package chatsrv
 
 import (
+	"fmt"
 	"strings"
 	"unicode"
 
@@ -32,7 +33,7 @@ func (ch initServerClientHandler) Handle(client *Client) string {
 type idClientHandler defaultClientHandler
 
 func (ch idClientHandler) Handle(client *Client) string {
-	client.Send <- []byte("Nick: ")
+	client.Send <- []byte(fmt.Sprintf("%s\nNick: ", ch.server.config.ServerName))
 
 	data, ok := <-client.Recv
 	if !ok {
