@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/google/shlex"
 )
@@ -132,7 +133,7 @@ func (ch chatClientHandler) Handle(client *Client) string {
 
 			// Strip all non graphic unicode characters, and convert data to a string
 			input := strings.Map(func(r rune) rune {
-				if unicode.IsGraphic(r) {
+				if unicode.IsGraphic(r) && r != utf8.RuneError {
 					return r
 				}
 
