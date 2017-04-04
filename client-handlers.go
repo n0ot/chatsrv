@@ -1,11 +1,11 @@
 package chatsrv
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"time"
 	"unicode"
-	"unicode/utf8"
 
 	"github.com/google/shlex"
 )
@@ -118,6 +118,11 @@ func (ch chatClientHandler) Handle(client *Client) string {
 				client.Send <- []byte("Goodbye\n")
 				return "Disconnected by server"
 			}
+
+			// Sanitize output, replacing 0xFF with 0xFFFF.
+			// 0xFF is the telnet IAC. Repeating twice escapes it.
+			// Prevents users from messing with telnet clients.
+			data = bytes.Replace(data, []byte{0xff}, []byte{0xff, 0xff}, -1)
 			client.Send <- data
 		case data, ok := <-client.Recv:
 			if !ok {
@@ -133,7 +138,7 @@ func (ch chatClientHandler) Handle(client *Client) string {
 
 			// Strip all non graphic unicode characters, and convert data to a string
 			input := strings.Map(func(r rune) rune {
-				if unicode.IsGraphic(r) && r != utf8.RuneError {
+				if unicode.IsGraphic(r) {
 					return r
 				}
 
