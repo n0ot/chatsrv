@@ -452,6 +452,8 @@ func sayToRoom(server *server, roomName, message string) error {
 		return fmt.Errorf("Room doesn't exist")
 	}
 
+	// Indent each line, except for the first
+	message = strings.Replace(message, "\n", "\n    ", -1) // -1 replaces all instances
 	message += "\n"
 
 	for nick, _ := range room.mods {

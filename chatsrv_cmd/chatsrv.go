@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/user"
 	"path"
+	"time"
 )
 
 func init() {
@@ -26,6 +27,8 @@ func init() {
 
 	viper.SetConfigFile(*configFile)
 	viper.SetConfigType("toml")
+	viper.SetDefault("chat.messageLineLimit", 24)
+	viper.SetDefault("chat.messagePasteTimeout", 5) // MS
 	viper.SetDefault("tls.useTls", false)
 	err = viper.ReadInConfig()
 	if err != nil {
@@ -41,12 +44,14 @@ func main() {
 	}
 
 	config := &chatsrv.ServerConfig{
-		BindAddr:   viper.GetString("bindAddr"),
-		ServerName: viper.GetString("serverName"),
-		Motd:       string(motd),
-		UseTls:     viper.GetBool("tls.useTls"),
-		CertFile:   os.ExpandEnv(viper.GetString("tls.certFile")),
-		KeyFile:    os.ExpandEnv(viper.GetString("tls.keyFile")),
+		BindAddr:            viper.GetString("bindAddr"),
+		ServerName:          viper.GetString("serverName"),
+		Motd:                string(motd),
+		UseTls:              viper.GetBool("tls.useTls"),
+		CertFile:            os.ExpandEnv(viper.GetString("tls.certFile")),
+		KeyFile:             os.ExpandEnv(viper.GetString("tls.keyFile")),
+		MessageLineLimit:    viper.GetInt("chat.messageLineLimit"),
+		MessagePasteTimeout: viper.GetDuration("chat.messagePasteTimeout") * time.Millisecond,
 	}
 
 	server := chatsrv.NewServer(config)

@@ -3,6 +3,7 @@ package chatsrv
 import (
 	"fmt"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/google/shlex"
@@ -74,12 +75,27 @@ func (ch chatClientHandler) Handle(client *Client) string {
 	// and the server doesn't have to worry about sending to a closed channel.
 	responseChan := make(chan []byte)
 
+	// Add this client as a user on the server
 	ch.server.in <- &serverCommand{
 		nick:         nick,
 		client:       client,
 		responseChan: responseChan,
 		command:      "adduser",
 	}
+
+	// Support multiline messages when pasting in text
+	// Limitting to a defined number of lines to prevent spamming and filling the memory.
+	// Warning: In the name of efficiency, the message slice will not be cleared after each send.
+	// Only send message[:messageLineNumber], not the entire slice!
+	message := make([]string, ch.server.config.MessageLineLimit)
+	messageLineNumber := 0 // Lines start at 0; reset when message is sent.
+	messagePasteTimeout := ch.server.config.MessagePasteTimeout
+
+	// Get a timer, but stop it right away, since we don't need it until the user starts sending messages to the room
+	messagePasteTimer := time.NewTimer(messagePasteTimeout)
+	stopTimerSafely(messagePasteTimer)
+	// and make sure the timer is stopped when the client quits.
+	defer stopTimerSafely(messagePasteTimer)
 
 	for {
 		// Track the client's nick variable, in case the server changes it
@@ -110,6 +126,12 @@ func (ch chatClientHandler) Handle(client *Client) string {
 			input := string(data)
 			if strings.HasPrefix(input, "/") {
 				// This is a command
+				// Stop the message timeout timer, until it is needed again.
+				stopTimerSafely(messagePasteTimer)
+				// Before executing this command,
+				// send the message, if there is one waiting to be sent.
+				sendMessage(ch.server, nick, client, responseChan, message[:messageLineNumber])
+				messageLineNumber = 0
 				args, err := shlex.Split(input)
 				if err != nil {
 					client.Send <- []byte("Error\n")
@@ -133,21 +155,61 @@ func (ch chatClientHandler) Handle(client *Client) string {
 				if input == "" {
 					continue // No holding down enter and spamming
 				}
-				roomName, ok := ch.server.userActiveRoom[nick]
-				if !ok {
-					client.Send <- []byte("You'll need to join a room before you can talk.\n/users lists all users, /rooms lists rooms, /join room joins a room,\n/leave leaves the room.\n")
-					continue
-				}
-				ch.server.in <- &serverCommand{
-					nick:         nick,
-					client:       client,
-					responseChan: responseChan,
-					command:      "say",
-					args:         []string{roomName, input},
+				// Another line was received to be sent as a message.
+				// Reset the timer and add this line to the message to be sent.
+				stopTimerSafely(messagePasteTimer)
+				messagePasteTimer.Reset(messagePasteTimeout)
+				if messageLineNumber < len(message) {
+					message[messageLineNumber] = input
+					messageLineNumber++
+				} else {
+					// No more lines allowed in message.
+					// Send what's there and start another message.
+					sendMessage(ch.server, nick, client, responseChan, message[:messageLineNumber])
+					messageLineNumber = 0
+					message[messageLineNumber] = input
+					messageLineNumber++
 				}
 			}
+		case <-messagePasteTimer.C:
+			// The message paste timeout was exceeded; send the message to the server
+			sendMessage(ch.server, nick, client, responseChan, message[:messageLineNumber])
+			messageLineNumber = 0
 		}
 	}
 
 	return "User quit"
+}
+
+// Helper functions
+
+// sendMessage sends a message to be sent to a room on the server
+func sendMessage(server *server, nick string, client *Client, responseChan chan<- []byte, message []string) {
+	if len(message) == 0 {
+		// Nothing to send
+		return
+	}
+	roomName, ok := server.userActiveRoom[nick]
+	if !ok {
+		client.Send <- []byte("You'll need to join a room before you can talk.\n/users lists all users, /rooms lists rooms, /join room joins a room,\n/leave leaves the room.\n")
+		return
+	}
+	server.in <- &serverCommand{
+		nick:         nick,
+		client:       client,
+		responseChan: responseChan,
+		command:      "say",
+		args:         []string{roomName, strings.Join(message, "\n")},
+	}
+}
+
+// stopTimerSafely stops a timer and drains it's channel
+// in case it expired before it was stopped
+func stopTimerSafely(timer *time.Timer) {
+	timer.Stop()
+	// If the timer was expired,
+	// the channel will need to be drained.
+	for len(timer.C) > 0 {
+		<-timer.C
+	}
 }

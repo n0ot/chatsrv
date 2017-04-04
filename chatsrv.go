@@ -27,12 +27,14 @@ type server struct {
 }
 
 type ServerConfig struct {
-	ServerName string
-	BindAddr   string
-	CertFile   string
-	KeyFile    string
-	UseTls     bool
-	Motd       string
+	ServerName          string
+	BindAddr            string
+	CertFile            string
+	KeyFile             string
+	UseTls              bool
+	Motd                string
+	MessageLineLimit    int
+	MessagePasteTimeout time.Duration
 }
 
 // NewServer creates a new server with the specified configuration
