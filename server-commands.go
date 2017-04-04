@@ -78,6 +78,7 @@ var cmdAdduser commandHandlerFunc = func(server *server, command *serverCommand)
 }
 
 // cmdRmuser removes a user from the server
+// This command calls close on the provided response chan.
 var cmdRmuser commandHandlerFunc = func(server *server, command *serverCommand) {
 	_, ok := server.clients[strings.ToLower(command.nick)]
 	if !ok {

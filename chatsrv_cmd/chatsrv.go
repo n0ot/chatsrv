@@ -28,7 +28,7 @@ func init() {
 	viper.SetConfigFile(*configFile)
 	viper.SetConfigType("toml")
 	viper.SetDefault("chat.messageLineLimit", 24)
-	viper.SetDefault("chat.messagePasteTimeout", 5) // MS
+	viper.SetDefault("chat.messagePasteTimeout", 30) // MS
 	viper.SetDefault("tls.useTls", false)
 	err = viper.ReadInConfig()
 	if err != nil {

@@ -74,6 +74,13 @@ func (ch chatClientHandler) Handle(client *Client) string {
 	// This is safer than giving the server client.Send, since checks for client.Stopped() can be done here,
 	// and the server doesn't have to worry about sending to a closed channel.
 	responseChan := make(chan []byte)
+	// If the client disconnects before the server is done sending to responseChan,
+	// the channel could fill up, which would hang the chat server.
+	// Make sure it is empty
+	defer func() {
+		for _ = range responseChan {
+		}
+	}()
 
 	// Add this client as a user on the server
 	ch.server.in <- &serverCommand{
@@ -183,7 +190,8 @@ func (ch chatClientHandler) Handle(client *Client) string {
 
 // Helper functions
 
-// sendMessage sends a message to be sent to a room on the server
+// sendMessage sends a message to be sent to a room on the server.
+// Only runes which unicode.IsGraphic returns true for will be included.
 func sendMessage(server *server, nick string, client *Client, responseChan chan<- []byte, message []string) {
 	if len(message) == 0 {
 		// Nothing to send
@@ -194,12 +202,24 @@ func sendMessage(server *server, nick string, client *Client, responseChan chan<
 		client.Send <- []byte("You'll need to join a room before you can talk.\n/users lists all users, /rooms lists rooms, /join room joins a room,\n/leave leaves the room.\n")
 		return
 	}
+
+	for i, _ := range message {
+		message[i] = strings.Map(func(r rune) rune {
+			if unicode.IsGraphic(r) {
+				return r
+			}
+
+			return rune(-1)
+		}, message[i])
+	}
+	fullMessage := strings.Join(message, "\n")
+
 	server.in <- &serverCommand{
 		nick:         nick,
 		client:       client,
 		responseChan: responseChan,
 		command:      "say",
-		args:         []string{roomName, strings.Join(message, "\n")},
+		args:         []string{roomName, fullMessage},
 	}
 }
 
