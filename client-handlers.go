@@ -130,7 +130,14 @@ func (ch chatClientHandler) Handle(client *Client) string {
 				return "User disconnected"
 			}
 
-			input := string(data)
+			// Strip all non graphic unicode characters, and convert data to a string
+			input := strings.Map(func(r rune) rune {
+				if unicode.IsGraphic(r) {
+					return r
+				}
+
+				return rune(-1)
+			}, string(data))
 			if strings.HasPrefix(input, "/") {
 				// This is a command
 				// Stop the message timeout timer, until it is needed again.
@@ -203,17 +210,7 @@ func sendMessage(server *server, nick string, client *Client, responseChan chan<
 		return
 	}
 
-	for i, _ := range message {
-		message[i] = strings.Map(func(r rune) rune {
-			if unicode.IsGraphic(r) {
-				return r
-			}
-
-			return rune(-1)
-		}, message[i])
-	}
 	fullMessage := strings.Join(message, "\n")
-
 	server.in <- &serverCommand{
 		nick:         nick,
 		client:       client,
