@@ -2,11 +2,11 @@ This is a simple chat server written in Go. It is a work in progress, and is mai
 
 To use:
 
-* go get github.com/n0ot/chatsrv
-* go install github.com/n0ot/chatsrv/chatsrv_cmd
+* `go get github.com/n0ot/chatsrv`
+* `go install github.com/n0ot/chatsrv/chatsrv_cmd`
 * Create a directory ".chatsrv" in your home directory, and copy chatsrv_cmd/example.conf to $HOME/.chatsrv/conf; modify it to your liking.
 * Create a file in $HOME/.chatsrv, called motd, with any text you want to be displayed when users connect.
-* Run chatsrv_cmd
+* Run `chatsrv_cmd`
 
 To connect, use netcat:
 
