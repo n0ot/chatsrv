@@ -2,10 +2,10 @@ package main
 
 import (
 	"flag"
+	log "github.com/Sirupsen/logrus"
 	"github.com/n0ot/chatsrv"
 	"github.com/spf13/viper"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/user"
 	"path"

@@ -3,8 +3,8 @@ package chatsrv
 import (
 	"bufio"
 	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"io"
-	"log"
 	"strings"
 	"sync"
 

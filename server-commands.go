@@ -2,7 +2,7 @@ package chatsrv
 
 import (
 	"fmt"
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"strings"
 	"time"
 	"unicode"
