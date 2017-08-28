@@ -3,11 +3,12 @@ package chatsrv
 
 import (
 	"fmt"
-	log "github.com/Sirupsen/logrus"
 	"net"
 	"strings"
 	"sync"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
 
 	"crypto/tls"
 )
@@ -95,6 +96,10 @@ func (server *server) Start() {
 		if err != nil {
 			log.Printf("Error accepting connection: %s\n", err)
 			continue
+		}
+		if tcpConn, ok := conn.(*net.TCPConn); ok {
+			tcpConn.SetKeepAlive(true)
+			tcpConn.SetKeepAlivePeriod(15 * time.Second)
 		}
 
 		client, err := NewClient(conn, InputModeLines, initServerClientHandler{server})

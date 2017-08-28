@@ -3,10 +3,11 @@ package chatsrv
 import (
 	"bufio"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
 	"io"
 	"strings"
 	"sync"
+
+	log "github.com/Sirupsen/logrus"
 
 	"github.com/satori/go.uuid"
 )

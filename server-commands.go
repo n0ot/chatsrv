@@ -2,10 +2,11 @@ package chatsrv
 
 import (
 	"fmt"
-	log "github.com/Sirupsen/logrus"
 	"strings"
 	"time"
 	"unicode"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 // Create a set of commands for the server
