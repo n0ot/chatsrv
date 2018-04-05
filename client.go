@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/pkg/errors"
 
 	"github.com/satori/go.uuid"
 )
@@ -46,17 +47,21 @@ type Client struct {
 // When the initial ClientHandler stops,
 // the client will be disconnected.
 func NewClient(rw io.ReadWriteCloser, inputMode InputMode, clientHandler ClientHandler) (*Client, error) {
+	u, err := uuid.NewV4()
+	if err != nil {
+		return nil, errors.Wrap(err, "Cannot get UUID")
+	}
 	client := &Client{
 		rw:      rw,
 		scanner: bufio.NewScanner(rw),
 		Send:    make(chan []byte, SendBuffSize),
 		Recv:    make(chan []byte),
-		uuid:    uuid.NewV4(),
+		uuid:    u,
 		context: make(map[string]interface{}),
 		done:    make(chan struct{}, 1),
 	}
 
-	err := client.SetInputMode(inputMode)
+	err = client.SetInputMode(inputMode)
 	if err != nil {
 		return nil, err
 	}

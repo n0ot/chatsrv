@@ -2,14 +2,15 @@ package main
 
 import (
 	"flag"
-	log "github.com/Sirupsen/logrus"
-	"github.com/n0ot/chatsrv"
-	"github.com/spf13/viper"
 	"io/ioutil"
 	"os"
 	"os/user"
 	"path"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/n0ot/chatsrv"
+	"github.com/spf13/viper"
 )
 
 func init() {
