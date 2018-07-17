@@ -10,7 +10,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 
-	"github.com/satori/go.uuid"
+	"github.com/google/uuid"
 )
 
 type InputMode byte
@@ -47,7 +47,7 @@ type Client struct {
 // When the initial ClientHandler stops,
 // the client will be disconnected.
 func NewClient(rw io.ReadWriteCloser, inputMode InputMode, clientHandler ClientHandler) (*Client, error) {
-	u, err := uuid.NewV4()
+	u, err := uuid.NewRandom()
 	if err != nil {
 		return nil, errors.Wrap(err, "Cannot get UUID")
 	}
